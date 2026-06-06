@@ -4,6 +4,17 @@ import os
 
 import signatures
 
+def analyze(filepath):
+    print(f"\n{filepath}")
+    with open(filepath, "rb") as file:
+        data = file.read(512)
+
+    candidates = signatures.identify(data)
+    if not candidates:
+        print(" Unknown file type.")
+    else:
+        for candidate in candidates:
+            print(f" {candidate["name"]}")
 
 if __name__ == "__main__":
 
@@ -13,17 +24,15 @@ if __name__ == "__main__":
     
     paths = sys.argv[1:]
     for filepath in paths:
-        if not os.path.isfile(filepath):
+        
+        if os.path.isdir(filepath):
+            for root, dirs, files in os.walk(filepath):
+                for file in files:
+                    analyze(os.path.join(root, file))
+
+        elif os.path.isfile(filepath):    
+           analyze(filepath)
+                    
+        else:
             print(f"{filepath}: not a valid file")
             continue
-
-        print(f"\n{filepath}")
-        with open(filepath, "rb") as file:
-            data = file.read(512)
-
-        candidates = signatures.identify(data)
-        if not candidates:
-            print("Unknown file type.")
-        else:
-            for candidate in candidates:
-                print(" Probably", candidate["name"])
