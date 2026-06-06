@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+import sys
+import os
+
+import signatures
+
+
+if __name__ == "__main__":
+
+    if len(sys.argv) < 2:
+        print("Usage: wtf <file> [file...]")
+        sys.exit(1)
+    
+    paths = sys.argv[1:]
+    for filepath in paths:
+        if not os.path.isfile(filepath):
+            print(f"{filepath}: not a valid file")
+            continue
+
+        print(f"\n{filepath}")
+        with open(filepath, "rb") as file:
+            data = file.read(512)
+
+        candidates = signatures.identify(data)
+        if not candidates:
+            print("Unknown file type.")
+        else:
+            for candidate in candidates:
+                print(" Probably", candidate["name"])
