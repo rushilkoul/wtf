@@ -208,6 +208,15 @@ SIGNATURES = [
         "offset": 0
     },
 
+    {
+        "name": "Microsoft Compound Document",
+        "extensions": [".doc", ".xls", ".ppt", ".msi"],
+        "signatures": (
+            b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1",
+        ),
+        "offset": 0
+    },
+
     # 3D / graphics
     {
         "name": "Blender file",
@@ -239,3 +248,31 @@ def identify(data):
                 break
 
     return matches
+
+
+import zipfile
+
+ZIP_FAMILY = {
+    "word/document.xml": {
+        "name": "Microsoft Word Document",
+        "extensions": [".docx"],
+    },
+
+    "xl/workbook.xml": {
+        "name": "Microsoft Excel Spreadsheet",
+        "extensions": [".xlsx"],
+    },
+
+    "ppt/presentation.xml": {
+        "name": "Microsoft PowerPoint Presentation",
+        "extensions": [".pptx"],
+    }
+}
+
+def identifyZipFamily(filepath):
+    with zipfile.ZipFile(filepath, 'r') as z:
+        names = set(z.namelist())
+        for filename, filetype in ZIP_FAMILY.items():
+            if filename in names:
+                return filetype
+    return None

@@ -4,17 +4,39 @@ import os
 
 import signatures
 
+def checkutf8(data) -> bool:
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        # handle multi byte UTF 8 characters if found at edge
+        if e.reason == "unexpected end of data": return True 
+        else: return False
+    
+    return True
+
 def analyze(filepath):
     print(f"\n{filepath}")
+
     with open(filepath, "rb") as file:
         data = file.read(512)
 
     candidates = signatures.identify(data)
     if not candidates:
-        print(" Unknown file type.")
+        if checkutf8(data):
+            print(" Text Data")
+        else:
+            print(" Unknown file type.")
     else:
         for candidate in candidates:
-            print(f" {candidate["name"]}")
+            if candidate["name"] == "ZIP archive":
+                family = signatures.identifyZipFamily(filepath)
+                if family:
+                    print(f" {family["name"]}")
+                else:
+                    print(f" {candidate["name"]}") # fallback to zip
+            else:
+                print(f" {candidate["name"]}")
+
 
 if __name__ == "__main__":
 
