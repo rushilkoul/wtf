@@ -1,42 +1,87 @@
 #!/usr/bin/env python3
 import sys
-import os
+from pathlib import Path
 
 import signatures
 
-def checkutf8(data) -> bool:
-    try:
-        data.decode("utf-8")
-    except UnicodeDecodeError as e:
-        # handle multi byte UTF 8 characters if found at edge
-        if e.reason == "unexpected end of data": return True 
-        else: return False
-    
-    return True
+CHUNK_SIZE = 500
+DEEP_SCAN = False
+
+# this is only temporary while i write specialized analyzers for each file type.
+# im not writing 30 analyzers in one go ;-;
+from analyzers import createResult
 
 def analyze(filepath):
-    print(f"\n{filepath}")
-
     with open(filepath, "rb") as file:
         data = file.read(512)
 
-    candidates = signatures.identify(data)
-    if not candidates:
-        if checkutf8(data):
-            print(" Text Data")
+    if not DEEP_SCAN:
+        candidates = signatures.identify(data)
+        if not candidates:
+            if signatures.checkutf8(data):
+                print(f"\n{filepath}")
+                print(" Text Data")
+            else:
+                print(f"\n{filepath}")
+                print(" Unknown file type.")
         else:
-            print(" Unknown file type.")
+            for candidate in candidates:
+                analyzer = candidate.get("analyzer")
+                if analyzer:
+                    result = analyzer(filepath)
+                    if result:
+                        printResult(result)
+                        continue
+                
+                printResult(createResult(filepath, candidate["name"]))
     else:
-        for candidate in candidates:
-            probe = candidate.get("probe")
-            if probe:
-                result = probe(filepath)
-                if result:
-                    print(f" {result["name"]}")
-                    continue
-            
-            print(f" {candidate["name"]}")
+        # TODO: update to use new result printer
+        candidates = signatures.deepProbe(filepath)
+        if not candidates:
+            if signatures.checkutf8(data):
+                    print(" Text Data")
+            else:
+                print(" Unknown file type.")
+        else:
+            for candidate in candidates:
+                match = candidate.get("filetype")
+                print(f"{match['name']} at offset {candidate['offset']}")
 
+def printResult(result):
+    CYAN = "\033[36m"
+    WHITE = "\033[97m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    RED = "\033[31m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    integrity = result["integrity"]
+
+    if integrity >= 80:
+        color = GREEN
+        status = ""
+    elif integrity >= 50:
+        color = YELLOW
+        status =  "Probably corrupted "
+    else:
+        color = RED
+        status = "Corrupted "
+
+    print(f"\n{result["file"]}")
+    print(f"{color}  {status}{result['type']}{RESET}")
+
+    print("  Reasoning:")
+    for reason in result["reasons"]:
+        print(f"\t{reason}")
+
+    print("  Integrity:", color, integrity, RESET)
+    warnings = result.get("warnings")
+    if(warnings):
+        print("  Warnings:", YELLOW)
+        for warning in warnings:
+            print(f"\t{warning}")
+        print(RESET)
 
 if __name__ == "__main__":
 
@@ -45,16 +90,19 @@ if __name__ == "__main__":
         sys.exit(1)
     
     paths = sys.argv[1:]
+    if sys.argv[1] == "--deep":
+        DEEP_SCAN = True
+        paths = sys.argv[2:]
+    
     for filepath in paths:
-        
-        if os.path.isdir(filepath):
-            for root, dirs, files in os.walk(filepath):
-                for file in files:
-                    analyze(os.path.join(root, file))
+        p = Path(filepath)
+        if p.is_dir():
+            for file in p.rglob("*"):
+                if file.is_file():
+                    analyze(file)
 
-        elif os.path.isfile(filepath):    
+        elif p.is_file():   
            analyze(filepath)
                     
         else:
             print(f"{filepath}: not a valid file")
-            continue

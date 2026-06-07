@@ -1,4 +1,4 @@
-from probes import identifyZipFamily
+from analyzers import *
 
 SIGNATURES = [
     # images
@@ -8,7 +8,8 @@ SIGNATURES = [
         "signatures": (
             b"\x89PNG\r\n\x1a\n",
         ),
-        "offset": 0
+        "offset": 0,
+        "analyzer": analyzePNG,
     },
     {
         "name": "JPEG image data",
@@ -16,7 +17,7 @@ SIGNATURES = [
         "signatures": (
             b"\xff\xd8\xff",
         ),
-        "offset": 0
+        "offset": 0,
     },
     {
         "name": "GIF image data",
@@ -83,7 +84,7 @@ SIGNATURES = [
         "signatures": (
             b"MZ",
         ),
-        "offset": 0
+        "offset": 0,
     },
 
     {
@@ -179,25 +180,13 @@ SIGNATURES = [
     },
     {
         "name": "Web Open Font Format (WOFF) font",
-        "extensions": [".woff"],
+        "extensions": [".woff", "woff2"],
         "signatures": (
             b"wOFF",
-        ),
-        "offset": 0,
-    },
-    # TODO: figure out how to make this WOFF thing into one. 
-    # this is also a problem i will experience with MS Office documents, because
-    # they are all also basically zip files. how do i then say if its a .docx or .xlsx
-    # or a .pptx if they all have the same headers?
-    #   i need some form of further classifier for ambiguous files like these, 
-    #   once ive established roughly what kind of file it is.
-    {
-        "name": "Web Open Font Format 2 (WOFF2) font",
-        "extensions": [".woff2"],
-        "signatures": (
             b"wOF2",
         ),
         "offset": 0,
+        "analyzer": analyzeWoff 
     },
     
     # archives
@@ -208,7 +197,7 @@ SIGNATURES = [
             b"PK\x03\x04",
         ),
         "offset": 0,
-        "probe": identifyZipFamily
+        "analyzer": analyzeZip
     },
 
     {
@@ -252,3 +241,38 @@ def identify(data):
 
     return matches
 
+def deepProbe(filepath):
+    matches = []
+
+    with open(filepath, 'rb') as file:
+        data = file.read()
+    
+    for filetype in SIGNATURES:
+        for sig in filetype["signatures"]:
+            offset = data.find(sig)
+            if len(sig) < 4:
+                continue
+
+            while offset != -1:
+                matches.append(
+                    {
+                        "offset": offset,
+                        "filetype": filetype
+                    }
+                )
+
+                offset = data.find(sig, offset + 1)
+    
+    return matches
+
+
+
+def checkutf8(data) -> bool:
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        # handle multi byte UTF 8 characters if found at edge
+        if e.reason == "unexpected end of data": return True 
+        else: return False
+    
+    return True
