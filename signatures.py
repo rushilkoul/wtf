@@ -1,3 +1,5 @@
+from probes import identifyZipFamily
+
 SIGNATURES = [
     # images
     {
@@ -205,7 +207,8 @@ SIGNATURES = [
         "signatures": (
             b"PK\x03\x04",
         ),
-        "offset": 0
+        "offset": 0,
+        "probe": identifyZipFamily
     },
 
     {
@@ -249,30 +252,3 @@ def identify(data):
 
     return matches
 
-
-import zipfile
-
-ZIP_FAMILY = {
-    "word/document.xml": {
-        "name": "Microsoft Word Document",
-        "extensions": [".docx"],
-    },
-
-    "xl/workbook.xml": {
-        "name": "Microsoft Excel Spreadsheet",
-        "extensions": [".xlsx"],
-    },
-
-    "ppt/presentation.xml": {
-        "name": "Microsoft PowerPoint Presentation",
-        "extensions": [".pptx"],
-    }
-}
-
-def identifyZipFamily(filepath):
-    with zipfile.ZipFile(filepath, 'r') as z:
-        names = set(z.namelist())
-        for filename, filetype in ZIP_FAMILY.items():
-            if filename in names:
-                return filetype
-    return None

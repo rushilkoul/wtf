@@ -28,14 +28,14 @@ def analyze(filepath):
             print(" Unknown file type.")
     else:
         for candidate in candidates:
-            if candidate["name"] == "ZIP archive":
-                family = signatures.identifyZipFamily(filepath)
-                if family:
-                    print(f" {family["name"]}")
-                else:
-                    print(f" {candidate["name"]}") # fallback to zip
-            else:
-                print(f" {candidate["name"]}")
+            probe = candidate.get("probe")
+            if probe:
+                result = probe(filepath)
+                if result:
+                    print(f" {result["name"]}")
+                    continue
+            
+            print(f" {candidate["name"]}")
 
 
 if __name__ == "__main__":
