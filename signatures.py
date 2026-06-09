@@ -18,6 +18,7 @@ SIGNATURES = [
             b"\xff\xd8\xff",
         ),
         "offset": 0,
+        "analyzer": analyzeJPEG,
     },
     {
         "name": "GIF image data",
@@ -85,6 +86,7 @@ SIGNATURES = [
             b"MZ",
         ),
         "offset": 0,
+        "analyzer": analyzePE
     },
 
     {
@@ -241,7 +243,7 @@ def identify(data):
 
     return matches
 
-def deepProbe(filepath):
+def deepIdentify(filepath):
     matches = []
 
     with open(filepath, 'rb') as file:
@@ -250,8 +252,6 @@ def deepProbe(filepath):
     for filetype in SIGNATURES:
         for sig in filetype["signatures"]:
             offset = data.find(sig)
-            if len(sig) < 4:
-                continue
 
             while offset != -1:
                 matches.append(
@@ -262,8 +262,9 @@ def deepProbe(filepath):
                 )
 
                 offset = data.find(sig, offset + 1)
+
     
-    return matches
+    return sorted(matches, key=lambda x: x['offset'])
 
 
 

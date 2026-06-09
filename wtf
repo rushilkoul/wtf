@@ -9,7 +9,7 @@ DEEP_SCAN = False
 
 # this is only temporary while i write specialized analyzers for each file type.
 # im not writing 30 analyzers in one go ;-;
-from analyzers import createResult
+from analyzers import Result
 
 def analyze(filepath):
     with open(filepath, "rb") as file:
@@ -33,10 +33,12 @@ def analyze(filepath):
                         printResult(result)
                         continue
                 
-                printResult(createResult(filepath, candidate["name"]))
+                result = Result(file, candidate["name"])
+                result.validHeader(candidate["name"])
+                printResult(result)
     else:
-        # TODO: update to use new result printer
-        candidates = signatures.deepProbe(filepath)
+        candidates = signatures.deepIdentify(filepath)
+        print(filepath)
         if not candidates:
             if signatures.checkutf8(data):
                     print(" Text Data")
@@ -45,7 +47,13 @@ def analyze(filepath):
         else:
             for candidate in candidates:
                 match = candidate.get("filetype")
-                print(f"{match['name']} at offset {candidate['offset']}")
+                analyzer = match.get("analyzer")
+                if analyzer:
+                    result = analyzer(filepath, candidate["offset"])
+                    if result:
+                        printResult(result)
+                else:
+                    print(" ! potentially", match['name'], "at offset", candidate['offset'])
 
 def printResult(result):
     CYAN = "\033[36m"
@@ -56,7 +64,7 @@ def printResult(result):
     RESET = "\033[0m"
     BOLD = "\033[1m"
 
-    integrity = result["integrity"]
+    integrity = result.integrity
 
     if integrity >= 80:
         color = GREEN
@@ -68,15 +76,15 @@ def printResult(result):
         color = RED
         status = "Corrupted "
 
-    print(f"\n{result["file"]}")
-    print(f"{color}  {status}{result['type']}{RESET}")
+    print(f"\n{result.file}")
+    print(f"{color}  {status}{result.type}{RESET} {f"at offset {result.offset}" if DEEP_SCAN else ""}")
 
     print("  Reasoning:")
-    for reason in result["reasons"]:
+    for reason in result.reasons:
         print(f"\t{reason}")
 
     print("  Integrity:", color, integrity, RESET)
-    warnings = result.get("warnings")
+    warnings = result.warnings
     if(warnings):
         print("  Warnings:", YELLOW)
         for warning in warnings:
