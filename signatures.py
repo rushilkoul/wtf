@@ -33,7 +33,8 @@ SIGNATURES = [
         "name": "BMP image data",
         "extensions": [".bmp"],
         "signatures": (b"BM",),
-        "offset": 0
+        "offset": 0,
+        "analyzer": analyzeBMP
     },
     {
         "name": "WEBP image data",
@@ -54,7 +55,8 @@ SIGNATURES = [
         "name": "ICO image data",
         "extensions": [".ico"],
         "signatures": (b"\x00\x00\x01\x00",),
-        "offset": 0
+        "offset": 0,
+        "analyzer": analyzeICO
     },
 
     {
@@ -169,7 +171,8 @@ SIGNATURES = [
         "signatures": (
             b"\x00\x01\x00\x00\x00",
         ),
-        "offset": 0
+        "offset": 0,
+        "analyzer": analyzeTTF
     },
 
     {

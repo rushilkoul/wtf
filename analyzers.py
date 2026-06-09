@@ -6,22 +6,26 @@ class Result:
         self.warnings = []
         self.reasons = []
         self.integrity = 0.0;
+        self.confidence = 0.0;
         self.file = file
         self.type = filetype
         self.offset = 0;
 
     def addEvidence(self, points, evidence):
-        self.integrity += points
-
-        self.integrity = max(0, min(100, self.integrity))
+        self.confidence += points
+        self.confidence = max(0, min(100, self.confidence))
 
         if(evidence[0] == "!"):
             self.warnings.append(evidence)
         else: self.reasons.append(evidence)
 
+    def setIntegrity(self, integrity):
+        self.integrity = integrity
+        # if integrity >= 99: self.confidence += 50 
+
     def validHeader(self, type=""):
         if type != "": type += " "
-        self.integrity += 20.0
+        self.confidence += 20.0
         self.reasons.append(f"+ Valid {type}header")
 
     def setOffset(self, offset):
@@ -41,6 +45,7 @@ def analyzeWoff(filepath, offset=0):
         result.type = "Web Open Font Format 2 (WOFF2) font"
         result.validHeader("WOFF2")
     
+    result.setIntegrity(100) # for now
     return result
 
 ZIP_FAMILY = {
@@ -89,6 +94,8 @@ def analyzeZip(filepath, offset=0):
             if filename in names:
                 result.type = filetype["name"]
                 result.validHeader(filetype["name"])
+            
+    result.setIntegrity(100) # for now
     return result
 
 
@@ -107,9 +114,10 @@ def tryPillowParse(file, result):
             img.verify()
 
         result.addEvidence(100, "+ Successfully parsed image")
-
+        result.setIntegrity(100)
     except Exception as e:
-        result.addEvidence(-40, "- Parsing failed: {e}")
+        result.addEvidence(-10, "- Parsing failed: {e}")
+        result.setIntegrity(0)
 
 
 def analyzePNG(file, offset=0):
@@ -206,10 +214,100 @@ def analyzeJPEG(file, offset=0):
 
     return result
 
-# PE = Portable Executable
+def parsePE(data, result):
+    """
+    A naive parser for portable executables.
+
+    checks for the binary sections:
+        .text
+        .data
+        .rdata
+        .rsrc
+    
+    Will improve the parser to actually evaluate the section table
+    and navigate the offset chain
+    (later :D)
+    """
+
+    integ = 0;
+    if b".text" in data:
+        integ += 25
+    if b".data" in data:
+        integ += 25
+    if b".rdata" in data:
+        integ += 25
+    if b".rsrc" in data:
+        integ += 25
+    
+    result.setIntegrity(integ)
+    if integ == 100:
+        result.addEvidence(20, "+ Parsed successfully")
+
 def analyzePE(file, offset=0):
+    """
+    Windows Portable Executable
+
+    testing for:
+    A small DOS stub for legacy compatibility
+    PE header at offset 0x3c
+    """
     result = Result(file, "Windows Portable Executable data")
-    result.addEvidence(20, "+ Valid PE Header")
+    result.addEvidence(20, "+ Valid MZ Header")
     result.setOffset(offset)
+    
+    with open(file, 'rb') as f:
+        data = f.read()[offset:]
+
+        stub = b"This program cannot be run in DOS mode" # cute
+
+        stub_pos = data.find(stub)
+    
+    if 0 <= stub_pos <= 1024:
+        result.addEvidence(50, "+ Found DOS stub")
+    else:
+        result.addEvidence(-5, "- Missing DOS stub")
+
+    try:
+        pe_offset = int.from_bytes(
+            data[0x3C:0x40],
+            "little"
+        )
+
+        if data[pe_offset:pe_offset+4] == b"PE\x00\x00":
+            result.addEvidence(
+                40,
+                "+ Valid PE header"
+            )
+        else:
+            result.addEvidence(
+                -40,
+                "- Invalid PE header"
+            )
+
+    except:
+        result.addEvidence(
+            -40,
+            "- Invalid e_lfanew"
+        )
+
+    parsePE(data, result)
 
     return result
+
+
+
+
+# done to reduce noise during testing --deep mode. 
+# will later write proper analyzers
+def analyzeBMP(file, offset=0):
+    result = Result(file, "Bitmap Image");
+    return result
+
+def analyzeTTF(file, offset=0):
+    result = Result(file, "TrueType Font");
+    return result
+
+def analyzeICO(file, offset=0):
+    result = Result(file, "ICO image");
+    return result
+
