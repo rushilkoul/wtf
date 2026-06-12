@@ -2,20 +2,21 @@
 import sys
 from pathlib import Path
 
+__version__ = "0.1.0"
+
 import signatures
 
-CHUNK_SIZE = 500
+CHUNK_SIZE = 512
 DEEP_SCAN = False
+RECURSIVE = False
 
-# this is only temporary while i write specialized analyzers for each file type.
-# im not writing 30 analyzers in one go ;-;
 from analyzers import Result
 
 def analyze(filepath):
     print(f"\n{filepath}: ", end="")
     
     with open(filepath, "rb") as file:
-        data = file.read(512)
+        data = file.read(CHUNK_SIZE)
 
     if not DEEP_SCAN:
         candidates = signatures.identify(data)
@@ -29,13 +30,13 @@ def analyze(filepath):
                 analyzer = candidate.get("analyzer")
                 if analyzer:
                     result = analyzer(filepath)
-                    if result:
-                        printResult(result)
-                        continue
-                
-                result = Result(file, candidate["name"])
-                result.validHeader(candidate["name"])
-                printResult(result)
+                    printResult(result)
+                else:
+                    result = Result(filepath, candidate["name"])
+                    result.validHeader(candidate["name"])
+                    result.addEvidence(0, "! No specialized analyzer implemented")
+                    result.integrity = None;
+                    printResult(result)
     else:
         candidates = signatures.deepIdentify(filepath)
         if not candidates:
@@ -66,7 +67,11 @@ def printResult(result):
     integrity = result.integrity
     confidence = result.confidence
 
-    if integrity >= 80:
+    if integrity is None:
+        integrity = "Not analyzed"
+        status = ""
+        color = WHITE
+    elif integrity >= 80:
         color = GREEN
         status = ""
     elif integrity >= 50:
@@ -97,26 +102,71 @@ def printResult(result):
         for warning in warnings:
             print(YELLOW, f"\t{warning}", RESET)
 
-if __name__ == "__main__":
+def printHelp():
+    print(f"""
+    wtf {__version__}
 
-    if len(sys.argv) < 2:
-        print("Usage: wtf <file> [file...]")
-        sys.exit(1)
-    
-    paths = sys.argv[1:]
-    if sys.argv[1] == "--deep":
-        DEEP_SCAN = True
-        paths = sys.argv[2:]
-    
-    for filepath in paths:
-        p = Path(filepath)
-        if p.is_dir():
+    Usage:
+        wtf [options] <file> [file...]
+        wtf [options] <directory>
+
+    Options:
+        --deep            Scan entire file for embedded signatures
+        -r, --recursive   Recurse into directories
+        -v, --version     Show version information
+        -h, --help        Show this help page
+    """
+    )
+
+def scanPath(path):
+    p = Path(path)
+
+    if p.is_file():
+        analyze(p)
+
+    elif p.is_dir():
+        if RECURSIVE:
             for file in p.rglob("*"):
                 if file.is_file():
                     analyze(file)
-
-        elif p.is_file():   
-           analyze(filepath)
-                    
         else:
-            print(f"{filepath}: not a valid file")
+            for file in p.iterdir():
+                if file.is_file():
+                    analyze(file)
+
+    else:
+        print(f"{path}: not a valid file")
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+
+    if not args:
+        print("Try 'wtf --help' for more information.")
+        sys.exit(1)
+
+    if "--help" in args or "-h" in args:
+        printHelp()
+        sys.exit(0)
+
+    if "--version" in args or "-v" in args:
+        print(f"wtf {__version__}")
+        sys.exit(0)
+
+    if "--deep" in args:
+        DEEP_SCAN = True
+        args.remove("--deep")
+
+    if "-r" in args:
+        RECURSIVE = True
+        args.remove("-r")
+
+    if "--recursive" in args:
+        RECURSIVE = True
+        args.remove("--recursive")
+
+    if not args:
+        print("No input files specified")
+        sys.exit(1)
+
+    for path in args:
+        scanPath(path)

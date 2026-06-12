@@ -1,38 +1,90 @@
 # What The File? (wtf)
 
-A tiny file identification utility that determines file types with binary signatures instead of their extensions.
+A file identification and analysis utility. Classifies files using binary signatures, validates structure, and can discover embedded files.
 
-> **(work in progress)**. 
+> **in early development**. 
 
-Example directory:
+### Features
+- Identify files using binary signatures
+- Detect corrupted or partially damaged files
+- Distinguish between archive-based file formats (DOCX, PPTX, APK, JAR ...)
+- Analyze file integrity and report reasoning
+- Discover files embedded in files
 
-1. `xyz`: A valid PNG file, but with no extension and added garbage at the end 
-2. `file.bin`: A corrupted PNG image with a different extension
 
-<img src="https://i.ibb.co/6RqpRc38/image.png" alt="console output screenshot" border="0">
+A long term goal is to train a model capable of identifying files even when their headers are missing or corrupted.
 
-an EXE embedded in a png file:
+For example:
+```
+Likely PNG image (82%)
+Possible JPEG image (11%)
+Possible GIF image (7%)
+```
 
-<img src="https://i.ibb.co/DgrZtNBf/image.png" alt="console output" border="0">
+the model would learn patterns directly from raw byte data.
 
-This project is an extension-ish to [ByteSweep](https://github.com/rushilkoul/bytesweep). ByteSweep works well for what it is, but leans more towards cleanup rather than actual recovery and analysis, which is what i originally intended for ByteSweep to be.
+### Quickstart and usage
 
-Eventually, I want this project to be able to classify files using a neural network. The cool part would be when a file header is gone but `wtf file.bin` still says: 
 
-*Likely PNG image*
+> Current external dependencies include only Pillow (PNG/JPEG verification). I plan to implement a custom image parser so no pip install is needed. For now:
 
-by running pattern recognition on the raw byte patterns. This could even potentially find other files embedded in the target file. For example, executables hidden in images.
+```bash
+git clone https://github.com/rushilkoul/wtf.git
+cd wtf
 
-> The scope for training a model is decent. `scrambler.py` already generates files, with minor changes it is possible to automatically generate large supervised datasets
+# using uv (recommended)
+uv venv
+source .venv/bin/activate
 
-this could probably be used as a straightforward CLI tool, and also incorporated directly into ByteSweep making it more powerful.
+uv pip install -r requirements.txt
 
+# or using pip:
+
+python -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+ 
+
+run it:
+```bash
+./wtf file.bin
+./wtf --deep suspicious.png
+./wtf -r Downloads/
+```
+---
 ### Roadmap
-- [x] classifying using magic headers
-- [x] ZIP family handling (distinguish between `DOCX / XLSX / PPTX / JAR ..etc`)
-- [x] deep probing for files embedded in files
+#### Core
+- [x] magic header classification
+- [x] ZIP family handling
 - [x] confidence scoring
-- [ ] Integrity scoring (want to write a custom parser instead of relying on dependencies)
-- [ ] some form of corruption analysis and recovery attempts
+- [x] Integrity analysis framework
+- [ ] support more formats for integrity analysis
+- [ ] corruption diagnosis
+- [ ] recovery attempts
+
+#### Embedded files `--deep`
+- [x] embedded file discovery
+- [ ] embedded file boundary detection & extraction
+
+#### Machine learning
+- [ ] dataset generation
 - [ ] headerless file classification
-- [ ] train a model to classify files from binary patterns.
+- [ ] neural network type prediction
+- [ ] recovery assistance for damaged files
+
+---
+### Examples:
+
+corruption detection:
+
+<img src="https://i.ibb.co/j9ngGPN2/image.png" width="550" alt="image" border="0">
+
+embedded file detection:
+
+<img src="https://i.ibb.co/wrzYHXNm/image.png" width="400" alt="image" border="0">
+
+archive family best candidate classification:
+
+<img src="https://i.ibb.co/xKXSLXwG/image.png" width="350"  alt="image" border="0">

@@ -45,57 +45,132 @@ def analyzeWoff(filepath, offset=0):
         result.type = "Web Open Font Format 2 (WOFF2) font"
         result.validHeader("WOFF2")
     
-    result.setIntegrity(100) # for now
+    result.setIntegrity(None) # for now
+    result.addEvidence(0, "! No specialized analyzer implemented")
     return result
 
+
 ZIP_FAMILY = {
-    "word/document.xml": {
-        "name": "Microsoft Word Document",
-        "extensions": [".docx"],
-    },
-
-    "xl/workbook.xml": {
-        "name": "Microsoft Excel Spreadsheet",
-        "extensions": [".xlsx"],
-    },
-
-    "ppt/presentation.xml": {
-        "name": "Microsoft PowerPoint Presentation",
-        "extensions": [".pptx"],
-    },
-    "AndroidManifest.xml": {
+    "apk": {
         "name": "Android Application Package",
-        "extensions": [".apk"], 
+        "indicators": {
+            "AndroidManifest.xml": 40,
+            "classes.dex": 40,
+            "resources.arsc": 30,
+            "META-INF/MANIFEST.MF": 10,
+        }
     },
-    "META-INF/MANIFEST.MF": {
-        "name": "Java Archive",
-        "extensions": [".jar"], 
-    },
-}
 
-# TODO: Begin confidence scoring as a single file can satisfy multiple probes. 
-# create a potential files list and return the most confident file.
-# eg: apk also has MANIFEST.MF same as jar files. rn it works because i've put it above the JAR so it
-# detects it first naturally and exits. Later, it should recognize that the file 
-# passes the check for both a jar and an apk, and further probing like the presence of androidManifest and
-# other similar files should increase confidence that it is an apk rather than a jar, returning the 
-# apk as the MOST probable file :p
+    "jar": {
+        "name": "Java Archive",
+        "indicators": {
+            "META-INF/MANIFEST.MF": 40,
+            "META-INF/main-class": 30,
+            "plugin.yml": 20,              # bukkit/Spigot plugins
+            "fabric.mod.json": 20,         # fabric mods
+            "mods.toml": 20,               # forge mods
+        }
+    },
+
+    "docx": {
+        "name": "Microsoft Word Document",
+        "indicators": {
+            "word/document.xml": 60,
+            "word/styles.xml": 20,
+            "word/settings.xml": 20,
+            "[Content_Types].xml": 10,
+        }
+    },
+
+    "xlsx": {
+        "name": "Microsoft Excel Spreadsheet",
+        "indicators": {
+            "xl/workbook.xml": 60,
+            "xl/styles.xml": 20,
+            "xl/sharedStrings.xml": 20,
+            "[Content_Types].xml": 10,
+        }
+    },
+
+    "pptx": {
+        "name": "Microsoft PowerPoint Presentation",
+        "indicators": {
+            "ppt/presentation.xml": 60,
+            "ppt/slides/slide1.xml": 20,
+            "[Content_Types].xml": 10,
+        }
+    },
+
+    "odt": {
+        "name": "OpenDocument Text",
+        "indicators": {
+            "content.xml": 40,
+            "styles.xml": 20,
+            "META-INF/manifest.xml": 20,
+            "mimetype": 30,
+        }
+    },
+
+    "ods": {
+        "name": "OpenDocument Spreadsheet",
+        "indicators": {
+            "content.xml": 40,
+            "styles.xml": 20,
+            "META-INF/manifest.xml": 20,
+            "mimetype": 30,
+        }
+    },
+
+    "odp": {
+        "name": "OpenDocument Presentation",
+        "indicators": {
+            "content.xml": 40,
+            "styles.xml": 20,
+            "META-INF/manifest.xml": 20,
+            "mimetype": 30,
+        }
+    }
+}
 
 def analyzeZip(filepath, offset=0):
     result = Result(filepath, "ZIP")
     result.setOffset(offset)
 
-    
+    scores = {}
+
     with zipfile.ZipFile(filepath, 'r') as z:
         names = set(z.namelist())
-        # if filepath.endswith(".apk"): print(z.namelist())
-        # if filepath.endswith(".apk"): z.extractall('tmp')
-        for filename, filetype in ZIP_FAMILY.items():
-            if filename in names:
-                result.type = filetype["name"]
-                result.validHeader(filetype["name"])
+        # # DEBUGGING
+        # if str(filepath).endswith(".jar"): z.extractall('jar')
+
+        for ext, info in ZIP_FAMILY.items():
+            score = 0;
+            reasons = []
+            for indicator, weight in info["indicators"].items():
+                if indicator in names:
+                    score += weight
+                    reasons.append({
+                        "reason": f"+ Found {indicator}",
+                        "weight": weight
+                    }
+                    )
+            scores[ext] = {
+                "score": score,
+                "reasoning": reasons
+            }
+
+        best = max(scores.items(), key=lambda x: x[1]["score"])
+        if best[1]["score"] > 0:
+            result.type = ZIP_FAMILY[best[0]]["name"]
+        else:
+            result.type = "ZIP archive"
+                
+        for reason in best[1].get('reasoning'):
+            result.addEvidence(reason["weight"], reason["reason"])
             
-    result.setIntegrity(100) # for now
+    result.setIntegrity(None)
+    result.confidence = min(best[1]["score"], 100)
+    result.addEvidence(0, "! No integrity analyzer implemented")
     return result
 
 
@@ -116,7 +191,7 @@ def tryPillowParse(file, result):
         result.addEvidence(100, "+ Successfully parsed image")
         result.setIntegrity(100)
     except Exception as e:
-        result.addEvidence(-10, "- Parsing failed: {e}")
+        result.addEvidence(-10, f"- Parsing failed: {e}")
         result.setIntegrity(0)
 
 
@@ -142,14 +217,14 @@ def analyzePNG(file, offset=0):
     with open(file, 'rb') as f:
         data = f.read()[offset:]
         if data[12:16] == b"IHDR":
-            result.addEvidence(20, "+ IHDR marker found")
+            result.addEvidence(30, "+ IHDR marker found")
         iend = data.rfind(b"IEND")
         if iend != -1:
             trailing = len(data) - (iend + 8)
             if trailing == 0:
                 result.addEvidence(30, "+ IEND marker found near EOF")
             else:
-                result.addEvidence(20, "+ IEND marker found")
+                result.addEvidence(30, "+ IEND marker found")
                 result.addEvidence(0, f"! {trailing} trailing bytes found after IEND")
         else:
             result.addEvidence(-20, "+ IEND marker missing")
@@ -157,6 +232,7 @@ def analyzePNG(file, offset=0):
     tryPillowParse(file, result)
 
     return result
+
     
 def analyzeJPEG(file, offset=0):
     """
@@ -214,6 +290,57 @@ def analyzeJPEG(file, offset=0):
 
     return result
 
+
+def analyzePE(file, offset=0):
+    """
+    Windows Portable Executable
+
+    testing for:
+    A small DOS stub for legacy compatibility
+    PE header at offset 0x3c
+    """
+    result = Result(file, "Windows Portable Executable")
+    result.addEvidence(20, "+ Valid MZ Header")
+    result.setOffset(offset)
+    
+    with open(file, 'rb') as f:
+        data = f.read()[offset:]
+
+    stub = b"This program cannot be run in DOS mode" # cute
+    
+    PE_VALID = False
+
+    try:
+        pe_offset = int.from_bytes(
+            data[0x3C:0x40],
+            "little"
+        )
+
+        stub_pos = data.find(stub)
+        
+        if 0 <= stub_pos <= pe_offset:
+            result.addEvidence(50, "+ Found DOS stub")
+        else:
+            result.addEvidence(-5, "- Missing DOS stub")
+
+        if data[pe_offset:pe_offset+4] == b"PE\x00\x00":
+            result.addEvidence(40, "+ Valid PE header")
+            PE_VALID = True
+        else:
+            result.addEvidence(-40, "- Invalid PE header")
+
+    except (IndexError, ValueError):
+        result.addEvidence(
+            -40,
+            "- Invalid e_lfanew"
+        )
+
+    if(PE_VALID):
+        parsePE(data, result)
+
+    return result
+
+
 def parsePE(data, result):
     """
     A naive parser for portable executables.
@@ -243,71 +370,24 @@ def parsePE(data, result):
     if integ == 100:
         result.addEvidence(20, "+ Parsed successfully")
 
-def analyzePE(file, offset=0):
-    """
-    Windows Portable Executable
-
-    testing for:
-    A small DOS stub for legacy compatibility
-    PE header at offset 0x3c
-    """
-    result = Result(file, "Windows Portable Executable data")
-    result.addEvidence(20, "+ Valid MZ Header")
-    result.setOffset(offset)
-    
-    with open(file, 'rb') as f:
-        data = f.read()[offset:]
-
-        stub = b"This program cannot be run in DOS mode" # cute
-
-        stub_pos = data.find(stub)
-    
-    if 0 <= stub_pos <= 1024:
-        result.addEvidence(50, "+ Found DOS stub")
-    else:
-        result.addEvidence(-5, "- Missing DOS stub")
-
-    try:
-        pe_offset = int.from_bytes(
-            data[0x3C:0x40],
-            "little"
-        )
-
-        if data[pe_offset:pe_offset+4] == b"PE\x00\x00":
-            result.addEvidence(
-                40,
-                "+ Valid PE header"
-            )
-        else:
-            result.addEvidence(
-                -40,
-                "- Invalid PE header"
-            )
-
-    except:
-        result.addEvidence(
-            -40,
-            "- Invalid e_lfanew"
-        )
-
-    parsePE(data, result)
-
-    return result
-
-
-
 
 # done to reduce noise during testing --deep mode. 
 # will later write proper analyzers
 def analyzeBMP(file, offset=0):
-    result = Result(file, "Bitmap Image");
+    result = Result(file, "Bitmap Image data");
+    result.setIntegrity(None)
+    result.addEvidence(0, "! No specialized analyzer implemented")
     return result
 
 def analyzeTTF(file, offset=0):
     result = Result(file, "TrueType Font");
+    result.setIntegrity(None)
+    result.addEvidence(0, "! No specialized analyzer implemented")
     return result
 
 def analyzeICO(file, offset=0):
     result = Result(file, "ICO image");
+    result.setIntegrity(None)
+    result.addEvidence(0, "! No specialized analyzer implemented")
     return result
 
