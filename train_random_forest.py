@@ -8,7 +8,7 @@ from sklearn.metrics import classification_report
 import pandas as pd 
 
 df = pd.read_csv(
-    "dataset_headerless.csv",
+    "dataset.csv",
     header=None
 )
 
@@ -36,7 +36,7 @@ predictions = model.predict(X_test)
 #     f"Accuracy: {accuracy*100:.2f}%"
 # )
 
-# print(model.classes_)
+print(model.classes_)
 
 # print('-'*30)
 # print(y.value_counts())
@@ -50,3 +50,16 @@ print(classification_report(y_test, model.predict(X_test)))
 
 print('-'*30)
 print(confusion_matrix( y_test, predictions ))
+print('-'*30)
+
+
+import numpy as np
+
+importances = model.feature_importances_
+top10 = np.argsort(importances)[-10:][::-1]
+for byte_val in top10:
+    print(f"byte {byte_val:3d} (0x{byte_val:02x}): {importances[byte_val]:.4f}")
+
+
+import joblib
+joblib.dump(model, "model.joblib")
