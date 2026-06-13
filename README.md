@@ -70,7 +70,7 @@ run it:
 
 #### Machine learning
 - [x] dataset generation
-- [ ] headerless file classification
+- [x] headerless file classification
 - [ ] neural network type prediction
 - [ ] recovery assistance for damaged files
 

@@ -22,7 +22,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=6
 )
 
-model = RandomForestClassifier(n_estimators=100, random_state=5)
+model = RandomForestClassifier(n_estimators=100, random_state=5, class_weight='balanced')
 
 model.fit(X_train, y_train)
 predictions = model.predict(X_test)
