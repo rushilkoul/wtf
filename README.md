@@ -69,7 +69,7 @@ run it:
 - [ ] embedded file boundary detection & extraction
 
 #### Machine learning
-- [ ] dataset generation
+- [x] dataset generation
 - [ ] headerless file classification
 - [ ] neural network type prediction
 - [ ] recovery assistance for damaged files
