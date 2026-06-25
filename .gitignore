@@ -3,3 +3,5 @@ test/
 ml/dataset
 .venv
 ml/notes.txt
+ml/test.csv
+ml/train.csv

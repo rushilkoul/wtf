@@ -71,8 +71,8 @@ run it:
 #### Machine learning
 - [x] dataset generation
 - [x] headerless file classification
-- [ ] neural network type prediction
 - [ ] recovery assistance for damaged files
+- [ ] transformer
 
 ---
 ### Examples:

@@ -17,5 +17,6 @@ for ax, label in zip(axes, labels):
 
 axes[-1].set_xlabel("byte value")
 plt.tight_layout()
+
 plt.savefig("hist.png", dpi=150)
 plt.show()

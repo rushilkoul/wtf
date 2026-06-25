@@ -7,22 +7,22 @@ from sklearn.metrics import classification_report
 
 import pandas as pd 
 
-df = pd.read_csv(
-    "dataset.csv",
-    header=None
+train_df = pd.read_csv("train.csv", header=None)
+test_df = pd.read_csv("test.csv", header=None)
+
+X_train = train_df.iloc[:, :-1]
+y_train = train_df.iloc[:, -1]
+
+X_test = test_df.iloc[:, :-1]
+y_test = test_df.iloc[:, -1]
+
+model = RandomForestClassifier(
+    n_estimators=300,
+    min_samples_leaf=2,
+    class_weight="balanced",
+    random_state=5,
+    n_jobs=-1
 )
-
-X = df.iloc[:, :-1]
-y = df.iloc[:, -1] 
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=6
-)
-
-model = RandomForestClassifier(n_estimators=100, random_state=5, class_weight='balanced')
 
 model.fit(X_train, y_train)
 predictions = model.predict(X_test)
