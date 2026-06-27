@@ -1,1 +1,4 @@
 pillow
+scikit-learn
+pandas
+matplotlib

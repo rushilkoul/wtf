@@ -69,10 +69,10 @@ run it:
 - [ ] embedded file boundary detection & extraction
 
 #### Machine learning
-- [ ] dataset generation
-- [ ] headerless file classification
-- [ ] neural network type prediction
+- [x] dataset generation
+- [x] headerless file classification
 - [ ] recovery assistance for damaged files
+- [ ] transformer
 
 ---
 ### Examples:
