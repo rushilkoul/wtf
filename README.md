@@ -1,6 +1,6 @@
 # What The File? (wtf)
 
-A file identification and analysis utility. Classifies files using binary signatures, validates structure, and can discover embedded files.
+A file identification and analysis utility. Classifies files using binary signatures, validates structure, explains its reasoning, and discovers embedded files.
 
 > **in early development**. 
 
@@ -10,18 +10,19 @@ A file identification and analysis utility. Classifies files using binary signat
 - Distinguish between archive-based file formats (DOCX, PPTX, APK, JAR ...)
 - Analyze file integrity and report reasoning
 - Discover files embedded in files
+- Experimental machine learning classifier for headerless file identification
 
 
-A long term goal is to train a model capable of identifying files even when their headers are missing or corrupted.
+### Machine Learning
+`wtf` includes an experimental machine learning model capable of classifying supported file types using statistical features extracted from the file's byte patterns, instead of relying on magic headers.
 
-For example:
-```
-Likely PNG image (82%)
-Possible JPEG image (11%)
-Possible GIF image (7%)
-```
+> what?
 
-the model would learn patterns directly from raw byte data.
+File type identification depends on a small sequence of bytes at the very beginning of the file that identifies what format it is, called the header or magic number. If this header were missing, corrupted or intentionally modified, most traditional tools would immediately fail to identify the file type.
+
+The current implementation uses a Random Forest trained on byte frequency histograms and entropy, which lets it make an informed prediction on the file type even when the header is not present. It is intended as a fallback for files that have missing or corrupted headers. For more information about the model setup and performance, go to `ml/README.md`
+
+In the long term i would like to replace this statistical model with a Transformer-based classifier.
 
 ### Quickstart and usage
 
@@ -71,8 +72,9 @@ run it:
 #### Machine learning
 - [x] dataset generation
 - [x] headerless file classification
+- [ ] integrate into CLI
 - [ ] recovery assistance for damaged files
-- [ ] transformer
+- [ ] transformer classifier
 
 ---
 ### Examples:
