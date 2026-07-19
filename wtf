@@ -9,51 +9,55 @@ import signatures
 CHUNK_SIZE = 512
 DEEP_SCAN = False
 RECURSIVE = False
+USE_ML = False
 
 from analyzers import Result
 
 def analyze(filepath):
     print(f"\n{filepath}: ", end="")
-    
-    with open(filepath, "rb") as file:
-        data = file.read(CHUNK_SIZE)
+    if not USE_ML:
+        with open(filepath, "rb") as file:
+            data = file.read(CHUNK_SIZE)
 
-    if not DEEP_SCAN:
-        candidates = signatures.identify(data)
-        if not candidates:
-            if signatures.checkutf8(data):
-                print(" Text Data")
-            else:
-                print(" Unknown file type.")
-        else:
-            for candidate in candidates:
-                analyzer = candidate.get("analyzer")
-                if analyzer:
-                    result = analyzer(filepath)
-                    printResult(result)
-                else:
-                    result = Result(filepath, candidate["name"])
-                    result.validHeader(candidate["name"])
-                    result.addEvidence(0, "! No specialized analyzer implemented")
-                    result.integrity = None;
-                    printResult(result)
-    else:
-        candidates = signatures.deepIdentify(filepath)
-        if not candidates:
-            if signatures.checkutf8(data):
+        if not DEEP_SCAN:
+            candidates = signatures.identify(data)
+            if not candidates:
+                if signatures.checkutf8(data):
                     print(" Text Data")
-            else:
-                print(" Unknown file type.")
-        else:
-            for candidate in candidates:
-                match = candidate.get("filetype")
-                analyzer = match.get("analyzer")
-                if analyzer:
-                    result = analyzer(filepath, candidate["offset"])
-                    if result and result.confidence >= 50:
-                        printResult(result)
                 else:
-                    print(" ! potentially", match['name'], "at offset", candidate['offset'])
+                    print(" Unknown file type.")
+            else:
+                for candidate in candidates:
+                    analyzer = candidate.get("analyzer")
+                    if analyzer:
+                        result = analyzer(filepath)
+                        printResult(result)
+                    else:
+                        result = Result(filepath, candidate["name"])
+                        result.validHeader(candidate["name"])
+                        result.addEvidence(0, "! No specialized analyzer implemented")
+                        result.integrity = None;
+                        printResult(result)
+        else:
+            candidates = signatures.deepIdentify(filepath)
+            if not candidates:
+                if signatures.checkutf8(data):
+                        print(" Text Data")
+                else:
+                    print(" Unknown file type.")
+            else:
+                for candidate in candidates:
+                    match = candidate.get("filetype")
+                    analyzer = match.get("analyzer")
+                    if analyzer:
+                        result = analyzer(filepath, candidate["offset"])
+                        if result and result.confidence >= 50:
+                            printResult(result)
+                    else:
+                        print(" ! potentially", match['name'], "at offset", candidate['offset'])
+    else:
+        from ml.random_forest import ml_analyze_file
+        ml_analyze_file(filepath)
 
 def printResult(result):
     CYAN = "\033[36m"
@@ -115,6 +119,9 @@ def printHelp():
         -r, --recursive   Recurse into directories
         -v, --version     Show version information
         -h, --help        Show this help page
+
+    Experimental:
+        --ml              Use the experimental ML model to classify the file
     """
     )
 
@@ -163,6 +170,10 @@ if __name__ == "__main__":
     if "--recursive" in args:
         RECURSIVE = True
         args.remove("--recursive")
+
+    if "--ml" in args:
+        USE_ML = True
+        args.remove("--ml")
 
     if not args:
         print("No input files specified")

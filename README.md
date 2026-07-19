@@ -16,7 +16,7 @@ A file identification and analysis utility. Classifies files using binary signat
 ### Machine Learning
 `wtf` includes an experimental machine learning model capable of classifying supported file types using statistical features extracted from the file's byte patterns, instead of relying on magic headers.
 
-> what?
+> magic number?
 
 File type identification depends on a small sequence of bytes at the very beginning of the file that identifies what format it is, called the header or magic number. If this header were missing, corrupted or intentionally modified, most traditional tools would immediately fail to identify the file type.
 
@@ -27,7 +27,7 @@ In the long term i would like to replace this statistical model with a Transform
 ### Quickstart and usage
 
 
-> Current external dependencies include only Pillow (PNG/JPEG verification). I plan to implement a custom image parser so no pip install is needed. For now:
+> Current (NON ML) external dependencies include only Pillow (PNG/JPEG verification). I plan to implement a custom image parser so no pip install is needed. For now:
 
 ```bash
 git clone https://github.com/rushilkoul/wtf.git
@@ -53,6 +53,9 @@ run it:
 ./wtf file.bin
 ./wtf --deep suspicious.png
 ./wtf -r Downloads/
+
+# using the experimental model:
+./wtf --ml path-to-file
 ```
 ---
 ### Roadmap
@@ -72,7 +75,7 @@ run it:
 #### Machine learning
 - [x] dataset generation
 - [x] headerless file classification
-- [ ] integrate into CLI
+- [x] integrate into CLI
 - [ ] recovery assistance for damaged files
 - [ ] transformer classifier
 
@@ -90,3 +93,7 @@ embedded file detection:
 archive family best candidate classification:
 
 <img src="https://i.ibb.co/xKXSLXwG/image.png" width="350"  alt="image" border="0">
+
+model classification:
+
+<img src="https://i.ibb.co/MkNnzm3S/image.png" width="350" alt="image" border="0">

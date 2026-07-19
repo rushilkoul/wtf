@@ -7,7 +7,7 @@ WINDOW_SIZE = 2048
 THRESHOLD = 3000
 NUM_WINDOWS = 5
 
-clf = joblib.load("model.joblib")
+clf = joblib.load("ml/model.joblib")
 
 
 def histogram(data):
@@ -92,23 +92,42 @@ def file_features(path):
 
     return features
 
+def ml_analyze_file(path):
+    try:
+        features = [file_features(path)]
+    except Exception as e:
+        print(f"An error occured: {e}")
+        exit(1)
 
-try:
-    features = [file_features(sys.argv[1])]
+    prediction = clf.predict(features)[0]
+    probabilities = clf.predict_proba(features)[0]
+    sorted_predictions = sorted(zip(clf.classes_, probabilities), key=lambda x: x[1], reverse=True)
 
-except ValueError as e:
-    print(e)
-    exit(1)
+    print(f"\n  prediction: {prediction} ({sorted_predictions[0][1]* 100:.2f}% confidence)\n")
+
+    # print the next two most probable candidates (maybe add this to a verbose mode later idk)
+    print("\033[2m  potentially:")
+    for label, probability in sorted_predictions[1:3]:
+        print(f"\t{label:<10} {probability * 100:.2f}% confidence")
+    print("\033[22m")
+
+# if __name__ == "__main__":
+#     try:
+#         features = [file_features(sys.argv[1])]
+
+#     except ValueError as e:
+#         print(e)
+#         exit(1)
 
 
-prediction = clf.predict(features)[0]
-probabilities = clf.predict_proba(features)[0]
+#     prediction = clf.predict(features)[0]
+#     probabilities = clf.predict_proba(features)[0]
 
-print(f"prediction: {prediction}")
-print()
+#     print(f"prediction: {prediction}")
+#     print()
 
-# for now also show the candidates, debugging :p
-sorted_predictions = sorted(zip(clf.classes_, probabilities), key=lambda x: x[1], reverse=True)
+#     # for now also show the candidates, debugging :p
+#     sorted_predictions = sorted(zip(clf.classes_, probabilities), key=lambda x: x[1], reverse=True)
 
-for label, probability in sorted_predictions:
-    print(f"{label:<10} {probability:.4f}")
+#     for label, probability in sorted_predictions:
+#         print(f"{label:<10} {probability:.4f}")
