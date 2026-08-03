@@ -5,3 +5,4 @@ ml/dataset
 ml/notes.txt
 ml/test.csv
 ml/train.csv
+ml/model.joblib

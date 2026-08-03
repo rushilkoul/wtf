@@ -26,25 +26,7 @@ model = RandomForestClassifier(
 
 model.fit(X_train, y_train)
 predictions = model.predict(X_test)
-
-# accuracy = accuracy_score(
-#     y_test,
-#     predictions
-# )
-
-# print(
-#     f"Accuracy: {accuracy*100:.2f}%"
-# )
-
 print(model.classes_)
-
-# print('-'*30)
-# print(y.value_counts())
-
-# print(X.shape)
-# print(y.shape)
-
-
 
 print(classification_report(y_test, model.predict(X_test)))
 

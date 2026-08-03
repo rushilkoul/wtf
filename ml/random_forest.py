@@ -10,124 +10,94 @@ NUM_WINDOWS = 5
 clf = joblib.load("ml/model.joblib")
 
 
-def histogram(data):
+def histogram(data: bytes):
     counts = Counter(data)
-
-    hist = []
-
-    for i in range(256):
-        hist.append(counts.get(i, 0))
-
-    return hist
+    return [counts.get(i, 0) for i in range(256)]
 
 
-def entropy(data):
+def entropy(data: bytes):
     counts = Counter(data)
     length = len(data)
+    if length == 0:
+        return 0.0
 
-    ent = 0
-
+    ent = 0.0
     for count in counts.values():
         probability = count / length
         ent -= probability * math.log2(probability)
 
     return ent
 
-
 def file_features(path):
-
     with open(path, "rb") as f:
-
         f.seek(0, 2)
         size = f.tell()
 
         if size < THRESHOLD + WINDOW_SIZE:
             raise ValueError("file is too small")
 
-        first_offset = THRESHOLD
-        last_offset = size - WINDOW_SIZE
-
-        offsets = []
-
-        if NUM_WINDOWS == 1:
-            offsets.append((first_offset + last_offset) // 2)
-
+        all_offsets = []
+        offset = THRESHOLD
+        while offset <= size - WINDOW_SIZE:
+            all_offsets.append(offset)
+            offset += WINDOW_SIZE
+        if len(all_offsets) <= NUM_WINDOWS:
+            chosen_offsets = all_offsets
         else:
-            span = last_offset - first_offset
+            step = (len(all_offsets) - 1) / (NUM_WINDOWS - 1)
+            chosen_offsets = [all_offsets[int(round(i * step))] for i in range(NUM_WINDOWS)]
 
-            for i in range(NUM_WINDOWS):
-                offset = first_offset + int(
-                    span * i / (NUM_WINDOWS - 1)
-                )
-
-                offsets.append(offset)
-
-        histograms = []
-        entropies = []
-
-        for offset in offsets:
-
+        features = []
+        for offset in chosen_offsets:
             f.seek(offset)
-
             window = f.read(WINDOW_SIZE)
 
-            histograms.append(histogram(window))
-            entropies.append(entropy(window))
+            hist = histogram(window)
+            ent = entropy(window)
 
-    average_histogram = []
-
-    for byte in range(256):
-
-        total = 0
-
-        for hist in histograms:
-            total += hist[byte]
-
-        average_histogram.append(total / len(histograms))
-
-    average_entropy = sum(entropies) / len(entropies)
-
-    features = average_histogram
-    features.append(average_entropy)
+            features.append(hist + [ent])
 
     return features
 
 def ml_analyze_file(path):
     try:
-        features = [file_features(path)]
+        features = file_features(path)
     except Exception as e:
-        print(f"An error occured: {e}")
-        exit(1)
+        print(f"An error occurred: {e}")
+        sys.exit(1)
 
-    prediction = clf.predict(features)[0]
-    probabilities = clf.predict_proba(features)[0]
-    sorted_predictions = sorted(zip(clf.classes_, probabilities), key=lambda x: x[1], reverse=True)
+    probabilities = clf.predict_proba(features)
 
-    print(f"\n  prediction: {prediction} ({sorted_predictions[0][1]* 100:.2f}% confidence)\n")
+    scores = {label: 0.0 for label in clf.classes_}
+    for window_probs in probabilities:
+        for label, probability in zip(clf.classes_, window_probs):
+            scores[label] += probability
 
-    # print the next two most probable candidates (maybe add this to a verbose mode later idk)
-    print("\033[2m  potentially:")
-    for label, probability in sorted_predictions[1:3]:
-        print(f"\t{label:<10} {probability * 100:.2f}% confidence")
+    for label in scores:
+        scores[label] /= len(probabilities)
+
+    sorted_scores = sorted(
+        scores.items(),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+    prediction, confidence = sorted_scores[0]
+    print(f"\n  prediction: {prediction} ({confidence * 100:.2f}% confidence)\n")
+
+    print("\033[2m  votes:")
+
+    for i, window_probs in enumerate(probabilities):
+            top_idx = window_probs.argmax()
+            label = clf.classes_[top_idx]
+            conf = window_probs[top_idx]
+    
+            print(f"   window {i + 1}: {label} ({conf * 100:.2f}%)")
+
     print("\033[22m")
-
-# if __name__ == "__main__":
-#     try:
-#         features = [file_features(sys.argv[1])]
-
-#     except ValueError as e:
-#         print(e)
-#         exit(1)
+    
 
 
-#     prediction = clf.predict(features)[0]
-#     probabilities = clf.predict_proba(features)[0]
-
-#     print(f"prediction: {prediction}")
-#     print()
-
-#     # for now also show the candidates, debugging :p
-#     sorted_predictions = sorted(zip(clf.classes_, probabilities), key=lambda x: x[1], reverse=True)
-
-#     for label, probability in sorted_predictions:
-#         print(f"{label:<10} {probability:.4f}")
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        ml_analyze_file(sys.argv[1])
